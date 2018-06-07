@@ -1,13 +1,13 @@
 const path = require('path');
 const webpack = require('webpack');
+const merge = require('webpack-merge');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const bundleOutputDir = './wwwroot/dist';
 
 module.exports = (env) => {
     const isDevBuild = !(env && env.prod);
-    return [{
+    const sharedConfig = () => ({
         stats: { modules: false },
-        entry: { 'main': './ClientApp/boot-app.js' },
         resolve: {
             extensions: ['.js', '.vue'],
             alias: {
@@ -26,26 +26,34 @@ module.exports = (env) => {
         module: {
             rules: [
                 { test: /\.vue$/, include: /ClientApp/, use: 'vue-loader' },
-                { test: /\.js$/, include: /ClientApp/, use: 'babel-loader' },
+                {
+                    test: /\.js$/,
+                    loader: 'babel-loader',
+                    include: __dirname,
+                    exclude: /node_modules/
+                },
                 { test: /\.css$/, use: isDevBuild ? ['style-loader', 'css-loader'] : ExtractTextPlugin.extract({ use: 'css-loader' }) },
                 { test: /\.(png|jpg|jpeg|gif|svg)$/, use: 'url-loader?limit=25000' }
             ]
         },
-        plugins: [
-            new webpack.DllReferencePlugin({
-                context: __dirname,
-                manifest: require('./wwwroot/dist/vendor-manifest.json')
-            })
-        ].concat(isDevBuild ? [
-            // Plugins that apply in development builds only
-            new webpack.SourceMapDevToolPlugin({
-                filename: '[file].map', // Remove this line if you prefer inline source maps
-                moduleFilenameTemplate: path.relative(bundleOutputDir, '[resourcePath]') // Point sourcemap entries to the original file locations on disk
-            })
-        ] : [
-                // Plugins that apply in production builds only
-                new webpack.optimize.UglifyJsPlugin(),
-                new ExtractTextPlugin('site.css')
-            ])
-    }];
+    });
+
+    const clientBundleConfig = merge(sharedConfig(), {
+        entry: { 'main-client': './ClientApp/client.js' },
+        output: {
+            path: path.join(__dirname, './wwwroot/dist')
+        }
+    });
+
+    const serverBundleConfig = merge(sharedConfig(), {
+        target: 'node',
+        entry: { 'main-server': './ClientApp/server.js' },
+        output: {
+            libraryTarget: 'commonjs2',
+            path: path.join(__dirname, './wwwroot/dist')
+        }
+    });
+
+
+    return [clientBundleConfig, serverBundleConfig];
 };
