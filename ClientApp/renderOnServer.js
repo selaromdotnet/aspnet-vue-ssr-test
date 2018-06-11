@@ -28,8 +28,9 @@ module.exports = prerendering.createServerRenderer(function (params) {
             vue_renderer.renderToString(context, (err, _html) => {
                 if (err) { reject(err.message) }
                 resolve({
+
+                    html: _html,
                     globals: {
-                        html: _html,
                         __INITIAL_STATE__: context.state
                     }
                 })
